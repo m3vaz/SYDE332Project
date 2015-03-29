@@ -1,6 +1,6 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
-from models import Flow
+from models import Flow, Storage
 
 engine = create_engine('mysql://root:pass1234@localhost/SYDE332')
 Session = sessionmaker(bind=engine)
@@ -10,7 +10,7 @@ session = Session()
 #clear flow data
 flows = session.query(Flow).delete()
 
-# deal with sacremento data first
+# deal with sacremento data
 raw = open('SacrementoFlowData.txt', 'r')
 
 s = raw.readline()
@@ -32,7 +32,7 @@ while s != '':
 	
 raw.close()
 
-# deal with san joaquin data first
+# deal with san joaquin data
 raw = open('SanJoaquinFlowData.txt', 'r')
 
 s = raw.readline()
@@ -81,3 +81,95 @@ for site in sites:
 		currentdate = currentdate+relativedelta(months=+1);
 
 session.commit()
+
+# The NVDI spatial data has been extracted using the hdftool from matlab and then slimmed down to size by using the area encompassed by the source and mouth of the san joaquin river
+
+
+# The precipitation data has already been preaveraged (thanks to NOAA)
+
+# The GLDAS data (courtesy of JPL)
+# there are 6 boxes over the watershed
+# top of the entire area is defined by 38 deg 04 min 00 sec N
+# bottom of the area is defined by 37 deg 43 min 56 sec N
+# left side of area is defined by 121 deg 51 min 04 sec W
+# right side of area is defined by 119 deg 10 min 34 sec W
+# the areas have already been calculated in matlab (see other projectcalc.m)
+
+#clear storage data
+flows = session.query(Storage).delete()
+
+import os
+gldasPath = 'gldas'
+filenames = next(os.walk(gldasPath))[2]
+for name in filenames:
+	raw = open(gldasPath+'\\'+name, 'r')
+	year = int(name.strip('gldas').strip('.txt')[:4])
+	month = int(name.strip('gldas').strip('.txt')[4:])
+	# get through header data
+	s = raw.readline()
+	while s[:3] == 'HDR':
+		s = raw.readline()
+	
+	# now at the actual data, data structure is long lat value
+	
+	line = 1
+	amount = 0
+	areaScale = 0
+	dataPoints = 0;
+	while s != '':
+		print(line)
+		line += 1
+		row = s.split();
+		rowValues = [ float(row[0]), float(row[1]), float(row[2])]
+		# looking for long values of 121.5, 120.5, 119.5
+		if (rowValues[0] != 121.5 and rowValues[0] != 120.5 and rowValues[0] != 119.5):
+			s = raw.readline()
+			continue
+		# looking for lat values of 37.5, 38.5
+		if (rowValues[1] != 37.5 and rowValues[1] != 38.5):
+			s = raw.readline()
+			continue
+		
+		
+		#we have data we're interested in
+		if (rowValues[1] == 37.5):
+			if (rowValues[0] == 121.5):
+				areaScale = 2.224614189525211e9
+			elif (rowValues[0] == 120.5):
+				areaScale = 2.613776462888733e9
+			elif (rowValues[0] == 119.5):
+				areaScale = 2.153461385813282e9
+			else:
+				print('boom1')# we shouldn't get here
+				print(s)
+				break;
+		elif(rowValues[1] == 38.5):
+			if (rowValues[0] == 121.5):
+				areaScale = 0.552587139594702e9
+			elif (rowValues[0] == 120.5):
+				areaScale = 0.649253819367169e9
+			elif (rowValues[0] == 119.5):
+				areaScale = 0.534913007845272e9
+			else:
+				print('boom2')# we shouldn't get here
+				break;
+		else:
+			print('boom3')# we shouldn't get here
+			break;
+		
+		amount += rowValues[2]/100*areaScale # convert from cm -> m
+		dataPoints += 1
+		
+		s = raw.readline()
+		#end month processing
+	# add the month in now
+	parseddata = Storage(amount=amount, measuredateyear = year, measuredatemonth = month, datapoints = dataPoints)
+	session.add(parseddata)	
+	raw.close()
+	
+session.commit()
+	
+
+
+
+
