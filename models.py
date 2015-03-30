@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, Date, Boolean, BigInteger
+from sqlalchemy import Column, Integer, Date, Boolean, BigInteger, Float
 from sqlalchemy import create_engine
 
 
@@ -19,6 +19,15 @@ class Flow(Base):
 	
 class Storage(Base):
 	__tablename__ = 'storagedata'
+	
+	id = Column(Integer, primary_key=True) # Will be marked as autoincrement
+	amount = Column(BigInteger)
+	measuredateyear = Column(Integer)
+	measuredatemonth = Column(Integer)
+	datapoints = Column(Integer)
+	
+class Precip(Base):
+	__tablename__ = 'precipdata'
 	
 	id = Column(Integer, primary_key=True) # Will be marked as autoincrement
 	amount = Column(BigInteger)
