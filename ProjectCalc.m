@@ -1,95 +1,94 @@
 % this file is meant for project calculations
 % I like cats
 %% WE BEGIN
-% finding the points to use in the box for nvdi data.
+% NO LONGER USED
 
-intervalcount = 1200;
-pointcount = intervalcount+1;
-% 1 arc minute is 1/60 of a degree, 1 arc second is 1/3600 of a degree
-target = [ 121+51*1/60+04*1/3600 38+04*1/60+00*1/3600];
-% dest is 121 deg 51' 04'' W 38 deg 04' 00'' N
-target = [ target; 119+10*1/60+34*1/3600 37+43*1/60+56*1/3600 ];
-% src is 119 deg 10' 34'' W 37 deg 43' 56'' N
-
-
-lat = zeros (pointcount, pointcount);
-long = zeros (pointcount, pointcount);
-
-% generate lat values for the first row
-latbound = [ 39.9999999964079 40.0852255853565 ; 29.8308028608368 29.9062514942912];
-f = @(x) latbound(1,1) + (latbound(1,2)-latbound(1,1))*(x-1)/(2001-1);
-for i = 1:pointcount
-   lat(1,i) = f(i);
-end 
-% similar for last row 
-f = @(x) latbound(2,1) + (latbound(2,2)-latbound(2,1))*(x-1)/(2001-1);
-for i = 1:pointcount
-   lat(pointcount,i) = f(i);
-end
-% calculate the lat values going across
-for i = 1:pointcount
-    f = @(x) lat(1,i) + (lat(pointcount,i)-lat(1,i))*(x-1)/(pointcount-1);
-    for j = 2:pointcount-1
-        lat(j,i) = f(j);
-    end
-end
-
-% same exact thing for long values
-% generate long values for the first row
-longbound = [ 130.540728914638 117.360631853124 ; 115.369550008828 103.699828723654];
-f = @(x) longbound(1,1) + (longbound(1,2)-longbound(1,1))*(x-1)/(2001-1);
-for i = 1:pointcount
-   long(1,i) = f(i);
-end 
-% similar for last row 
-f = @(x) longbound(2,1) + (longbound(2,2)-longbound(2,1))*(x-1)/(2001-1);
-for i = 1:pointcount
-   long(pointcount,i) = f(i);
-end
-% calculate the long values going across
-for i = 1:pointcount
-    f = @(x) long(1,i) + (long(pointcount,i)-long(1,i))*(x-1)/(pointcount-1);
-    for j = 2:pointcount-1
-        long(j,i) = f(j);
-    end
-end
-
-% find the points area
-
-disp('Finding points');
-
-targetfound = 0;
-for i = 1:intervalcount
-    longcomp = [];
-    latcomp = [];
-    for j = 1:intervalcount
-        if ( all(long(i,j) < target(:, 1)) && all(long (i+1, j) < target(:, 1)))
-            continue;
-        elseif (all(long(i, j+1) > target(:, 1)) && all(long(i+1, j+1) > target(:, 1)))
-            continue;
-        elseif (all(lat (i, j) < target(1, :)) && all(lat (i, j+1) < target (1, :)))
-            continue;
-        elseif (all(lat (i+1, j) > target(1, :)) && all(lat (i+1, j+1) > target (1, :)))
-            continue;
-        end
-        bounds = [ long(i, j) lat(i,j) ];
-        bounds = [ bounds ; long(i, j+1) lat(i, j+1)];
-        bounds = [ bounds ; long(i+1, j+1) lat(i+1, j+1)];
-        bounds = [ bounds ; long(i+1, j) lat(i+1, j) ];
-        in = inpoly(target, bounds);
-        if max(in)
-            targetfound = targetfound+1;
-            disp(i);
-            disp(j);
-        end
-        if targetfound == length(target)
-            break;
-        end
-    end
-    if targetfound == length(target)
-        break;
-    end
-end
+% intervalcount = 1200;
+% pointcount = intervalcount+1;
+% % 1 arc minute is 1/60 of a degree, 1 arc second is 1/3600 of a degree
+% target = [ 121+51*1/60+04*1/3600 38+04*1/60+00*1/3600];
+% % dest is 121 deg 51' 04'' W 38 deg 04' 00'' N
+% target = [ target; 119+10*1/60+34*1/3600 37+43*1/60+56*1/3600 ];
+% % src is 119 deg 10' 34'' W 37 deg 43' 56'' N
+% 
+% 
+% lat = zeros (pointcount, pointcount);
+% long = zeros (pointcount, pointcount);
+% 
+% % generate lat values for the first row
+% latbound = [ 39.9999999964079 40.0852255853565 ; 29.8308028608368 29.9062514942912];
+% f = @(x) latbound(1,1) + (latbound(1,2)-latbound(1,1))*(x-1)/(2001-1);
+% for i = 1:pointcount
+%    lat(1,i) = f(i);
+% end 
+% % similar for last row
+% f = @(x) latbound(2,1) + (latbound(2,2)-latbound(2,1))*(x-1)/(2001-1);
+% for i = 1:pointcount
+%    lat(pointcount,i) = f(i);
+% end
+% % calculate the lat values going across
+% for i = 1:pointcount
+%     f = @(x) lat(1,i) + (lat(pointcount,i)-lat(1,i))*(x-1)/(pointcount-1);
+%     for j = 2:pointcount-1
+%         lat(j,i) = f(j);
+%     end
+% end
+% 
+% % same exact thing for long values generate long values for the first row
+% longbound = [ 130.540728914638 117.360631853124 ; 115.369550008828 103.699828723654];
+% f = @(x) longbound(1,1) + (longbound(1,2)-longbound(1,1))*(x-1)/(2001-1);
+% for i = 1:pointcount
+%    long(1,i) = f(i);
+% end 
+% % similar for last row
+% f = @(x) longbound(2,1) + (longbound(2,2)-longbound(2,1))*(x-1)/(2001-1);
+% for i = 1:pointcount
+%    long(pointcount,i) = f(i);
+% end
+% % calculate the long values going across
+% for i = 1:pointcount
+%     f = @(x) long(1,i) + (long(pointcount,i)-long(1,i))*(x-1)/(pointcount-1);
+%     for j = 2:pointcount-1
+%         long(j,i) = f(j);
+%     end
+% end
+% 
+% % find the points area
+% 
+% disp('Finding points');
+% 
+% targetfound = 0;
+% for i = 1:intervalcount
+%     longcomp = [];
+%     latcomp = [];
+%     for j = 1:intervalcount
+%         if ( all(long(i,j) < target(:, 1)) && all(long (i+1, j) < target(:, 1)))
+%             continue;
+%         elseif (all(long(i, j+1) > target(:, 1)) && all(long(i+1, j+1) > target(:, 1)))
+%             continue;
+%         elseif (all(lat (i, j) < target(1, :)) && all(lat (i, j+1) < target (1, :)))
+%             continue;
+%         elseif (all(lat (i+1, j) > target(1, :)) && all(lat (i+1, j+1) > target (1, :)))
+%             continue;
+%         end
+%         bounds = [ long(i, j) lat(i,j) ];
+%         bounds = [ bounds ; long(i, j+1) lat(i, j+1)];
+%         bounds = [ bounds ; long(i+1, j+1) lat(i+1, j+1)];
+%         bounds = [ bounds ; long(i+1, j) lat(i+1, j) ];
+%         in = inpoly(target, bounds);
+%         if max(in)
+%             targetfound = targetfound+1;
+%             disp(i);
+%             disp(j);
+%         end
+%         if targetfound == length(target)
+%             break;
+%         end
+%     end
+%     if targetfound == length(target)
+%         break;
+%     end
+% end
 
 %% this is meant for calcuating area elements for GLDAS data 
 % each gldas grid element is 1 degree by 1 degree in spherical and so
@@ -140,6 +139,29 @@ for i =0:5
 end
 weights = table (coords(:, 1), coords(:, 2), coords(:, 3));
 writetable(weights, 'gldasweights.csv');
+
+
+%% this is meant for calcuating area elements for NDVI data 
+% each nvdi grid element is 0.1 degree by 0.1 degree in spherical and so
+% requires separate calcuations to figure out the contribution
+
+radify = @(deg) deg./180.*pi();
+radiusearth = 6371.009*1000; % average rad in meters of earth from IUGG
+area = @(lat1, lat2, long1, long2) radiusearth^2 *(cos(90-lat2)-cos(90-lat1))*(long2-long1);
+
+watershed = [40.90 -123.16; 41.82 -120.64; 37.22 -118.93; 36.47 -120.93];
+% this part is simple sorta
+coords = [];
+for i =0:0.1:5
+    for j = 0:0.1:5
+        bounds = [36+i -124+j; 36+i+0.1 -124+j; 36+i+0.1 -124+j+0.1; 36+i -124+j+0.1 ]
+        areaelement = abs(area(radify(36+i), radify(36+i+0.1), radify(-124+j), radify(-124+j+0.1)));
+        coords = [coords; 36.05+i -123.05+j areaintersection(watershed, bounds,1500)*areaelement];
+    end
+end
+weights = table (coords(:, 1), coords(:, 2), coords(:, 3));
+writetable(weights, 'ndviweights.csv');
+
 
 %% because finding stations is hard >__>
 
