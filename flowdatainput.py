@@ -6,7 +6,7 @@ engine = create_engine('mysql://root:pass1234@localhost/SYDE332')
 Session = sessionmaker(bind=engine)
 session = Session()
 
-
+#######################################################################
 #clear flow data
 flows = session.query(Flow).delete()
 
@@ -17,10 +17,10 @@ s = raw.readline()
 while s[:4] != 'USGS':
 	s = raw.readline()
 
-line = 1
+#line = 1
 while s != '':
-	print(line)
-	line += 1
+	#print(line)
+	#line += 1
 	row = s.split('\t')
 	date = row[2].split('-')
 	# first column is agency, second column is site, 
@@ -39,10 +39,10 @@ s = raw.readline()
 while s[:4] != 'USGS':
 	s = raw.readline()
 
-line = 1
+#line = 1
 while s != '':
-	print(line)
-	line += 1
+	#print(line)
+	#line += 1
 	row = s.split('\t')
 	date = row[2].split('-')
 	# first column is agency, second column is site, 
@@ -82,52 +82,134 @@ for site in sites:
 
 session.commit()
 
+print('Flow Processing Complete')
+
+#######################################################################
 # The NVDI spatial data has been extracted using the hdftool from matlab and then slimmed down to size by using the area encompassed by the source and mouth of the san joaquin river
 
 
+#######################################################################
 # The precipitation data has already been preaveraged (thanks to NOAA)
-scaling = {'CHVC1': 0,'HETC1': 0,'NMDC1': 0,'SCKC1': 0,'SONC1': 0,'YPQC1': 0}
-files = ['precipSJ2002.csv','precipSJ2012.csv']
-for file in files:
-	raw = open(file, 'r')
-	year = file.strip('.csv')[-4:]
+
+precip = session.query(Precip).delete()
+
+# grab scaling data first
+scaling = {}
+file = 'precipStationAreas.csv'
+raw = open(file, 'r')
+
+# header line
+s = raw.readline()
+
+# first line
+s = raw.readline()
+#line = 1
+while s!= '':
+	#print (line)
+	#line += 1
+	# values of interest are 5 and 6, area and id
+	row = s.split(',')
+	name = row[6].strip("'").strip('"')
+	area = int(row[5])
+	scaling[name] = area
+	s = raw.readline()
 	
-	raw.readline() # header lines
+raw.close()
+
+# actually process data now
+import os
+precipPath = 'precip'
+filenames = next(os.walk(precipPath))[2]
+# can deal with missing data in 2 ways
+# zero it
+# proportional split
+#mode = 'zero'
+mode = 'prop'
+for file in filenames:
+	raw = open(precipPath+'\\'+file, 'r')
+	year = int(file.strip('.csv')[-4:])
+	loc = file.strip('.csv')[-6:-4]
 	
-	line = 1
-	mayamount = 0
-	apramount = 0
+	s = raw.readline() # header lines
+	
+	#line = 1
+	#print (file)
+	amount = [0 for i in range(12)]
+	names = [[] for i in range(12)]
+	missPoints = [[] for i in range(12)]
 	areaScale = 0
-	dataPoints = 0
-	
+	dataPoints = [0 for i in range(12)]
+
 	while s != '':
-		print (line)
-		line += 1
-		s.readLine()
+		#print (line)
+		#line += 1
+		# process lines first
+		s = raw.readline()
+		#print(s)
 		row = s.split(',')
-		if row[0] in scaling.keys():
-			areaScale = scaling[rows[0]];
-			dataPoints += 1
-			# indexes 8 and 9 are apr, may
-			apramount += areaScale*rows[8]/1000
-			mayamount += areaScale*rows[9]/1000
+		stationID = row[0]
+		if stationID in scaling.keys(): # station is of interest
+			areaScale = scaling[stationID]
+			for pos in range(2,14):
+				ind = pos-2 # index of processing arrays
+				if row[pos] != 'M':
+					dataPoints[ind] += 1
+					names[ind].append(stationID)
+					# october of previous year to september of current
+					amount[ind] += areaScale*float(row[pos])/1000
+					# 1000 is for mm -> m conversion
+				elif row[pos] == 'M':
+					missPoints[ind].append(stationID)
 		else:
-			continue;
-	
-	aprdata = Precip(amount=apramount, measuredateyear = year, measuredatemonth = 4, datapoints = dataPoints)
-	maydata = Precip(amount=mayamount, measuredateyear = year, measuredatemonth = 5, datapoints = dataPoints)
-	session.add(aprdata)
-	session.add(maydata)
+			continue
+	# done processing this file
 	raw.close()
+	
+	# deal with missing data
+
+	if mode == 'zero':
+		print('not scaling')
+		# do nothing
+	elif mode == 'prop':
+		# how much area is there total
+		tot = sum(scaling.values())
+		for i in range(12):
+			if dataPoints[i] < len(scaling.keys()):
+				#print('scaling data')
+				# how much data is there now
+				curr = 0
+				for key in names[i]:
+					curr += scaling[key]
+				# scale it
+				amount[i] = tot/curr*amount[i]
+	else:
+		print('boom')
+		int('3.5')
+	
+	# input the data
+	# start in october of last year
+	datayear = year-1
+	datamonth = 10
+	for i in range(12):
+		# who's missing
+		missing = (set(scaling.keys())-set(names[i]))-set(missPoints[i])
+		if len(missing) > 0:
+			print('Year ' + str(datayear) + ' ' + str(datamonth))
+			print (missing)
+		
+		data = Precip(amount=amount[i], measuredateyear = datayear, measuredatemonth = datamonth, datapoints = dataPoints[i])
+		session.add(data)
+		datamonth += 1
+		if datamonth >= 13:
+			datamonth -= 12
+			datayear += 1
 
 session.commit()
 
+print('Precipitation Processing Complete')
+
+#######################################################################
 # The GLDAS data (courtesy of JPL)
-# there are 6 boxes over the watershed
-# top of the entire area is defined by 38 deg 04 min 00 sec N
-# bottom of the area is defined by 37 deg 43 min 56 sec N
-# left side of area is defined by 121 deg 51 min 04 sec W
-# right side of area is defined by 119 deg 10 min 34 sec W
 # the areas have already been calculated in matlab (see other projectcalc.m)
 
 #clear storage data
@@ -161,13 +243,13 @@ for name in filenames:
 	
 	# now at the actual data, data structure is long lat value
 	
-	line = 1
+	#line = 1
 	amount = 0
 	areaScale = 0
 	dataPoints = 0;
 	while s != '':
-		print(line)
-		line += 1
+		#print(line)
+		#line += 1
 		row = s.split();
 		rowValues = [ float(row[0]), float(row[1]), float(row[2])]
 		# looking for long values of 121.5, 120.5, 119.5
@@ -192,6 +274,7 @@ for name in filenames:
 	
 session.commit()
 
+print('GLDAS processing complete')
 
 
 
