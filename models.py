@@ -35,6 +35,14 @@ class Precip(Base):
 	measuredatemonth = Column(Integer)
 	datapoints = Column(Integer)
 	
+class NDVI(Base):
+	__tablename__ = 'ndvidata'
+	id = Column(Integer, primary_key=True) # Will be marked as autoincrement
+	amount = Column(Float)
+	measuredateyear = Column(Integer)
+	measuredatemonth = Column(Integer)
+	datapoints = Column(Integer)
+	
 engine = create_engine('mysql://root:pass1234@localhost/SYDE332')
 Base.metadata.create_all(engine)
 

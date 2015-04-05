@@ -152,15 +152,23 @@ area = @(lat1, lat2, long1, long2) radiusearth^2 *(cos(90-lat2)-cos(90-lat1))*(l
 watershed = [40.90 -123.16; 41.82 -120.64; 37.22 -118.93; 36.47 -120.93];
 % this part is simple sorta
 coords = [];
-for i =0:0.1:5
-    for j = 0:0.1:5
-        bounds = [36+i -124+j; 36+i+0.1 -124+j; 36+i+0.1 -124+j+0.1; 36+i -124+j+0.1 ]
-        areaelement = abs(area(radify(36+i), radify(36+i+0.1), radify(-124+j), radify(-124+j+0.1)));
-        coords = [coords; 36.05+i -123.05+j areaintersection(watershed, bounds,1500)*areaelement];
+resolution = 0.1;
+for i =0:resolution:6
+    for j = 0:resolution:6
+        bounds = [36+i -124+j; 36+i+resolution -124+j; 36+i+resolution -124+j+resolution; 36+i -124+j+resolution ]
+        areaelement = abs(area(radify(36+i), radify(36+i+resolution), radify(-124+j), radify(-124+j+resolution)));
+        coords = [coords; 36+resolution/2+i -123+resolution/2+j areaintersection(watershed, bounds,1500)/(resolution^2)*areaelement];
     end
 end
 weights = table (coords(:, 1), coords(:, 2), coords(:, 3));
 writetable(weights, 'ndviweights.csv');
+
+for i = 0:5
+    beep;
+    pause(1);
+    beep;
+    pause(1);
+end
 
 
 %% because finding stations is hard >__>

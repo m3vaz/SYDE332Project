@@ -1,6 +1,6 @@
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import create_engine, func
-from models import Flow, Storage, Precip
+from models import Flow, Storage, Precip, NDVI
 
 engine = create_engine('mysql://root:pass1234@localhost/SYDE332')
 Session = sessionmaker(bind=engine)
@@ -87,7 +87,131 @@ print('Flow Processing Complete')
 #######################################################################
 # The NVDI spatial data has been extracted using the hdftool from matlab and then slimmed down to size by using the area encompassed by the source and mouth of the san joaquin river
 
+ndvi = session.query(NDVI).delete()
 
+#reading weight values
+weights = {}
+raw = open('ndviweights.csv')
+s = raw.readline()
+s = raw.readline()
+# min max
+boundLatVal = [180, -180]
+boundLongVal = [360, -360]
+while s!= '':
+	row = s.split(',')
+	rowValues = [ float(row[0]), float(row[1]), float(row[2]) ]
+	if rowValues [0] < boundLatVal[0]:
+		boundLatVal[0] = rowValues[0]
+	if rowValues [0] > boundLatVal [1]:
+		boundLatVal[1] = rowValues[0]
+	if rowValues[1] < boundLongVal[0]:
+		boundLongVal[0] = rowValues[1]
+	if rowValues[1] > boundLongVal[1]:
+		boundLongVal[1] = rowValues[1]
+	weights[(rowValues[0], rowValues[1])] = rowValues[2]
+	s = raw.readline()
+raw.close()
+
+# because we need to do histograms
+ndviStats = 'ndvistats.csv'
+statsOut = open(ndviStats, 'w')
+statsOut.write('year,month,<0,0-0.2,0.2-0.4,0.4-0.6,0.6<\n')
+
+areaStats = 'ndviareastats.csv'
+areaOut = open(areaStats, 'w')
+areaOut.write('year,month,<0,0-0.2,0.2-0.4,0.4-0.6,0.6<\n')
+
+import os
+ndviPath = 'NDVI'
+filenames = next(os.walk(ndviPath))[2]
+for name in filenames:
+	print (name)
+	raw = open(ndviPath+'\\'+name, 'r')
+	year = int(name.strip('NDVI').strip('.CSV')[:4])
+	month = int(name.strip('NDVI').strip('.CSV')[4:])
+	
+	# header data
+	s = raw.readline()
+	# figure out which columns you need
+	row = s.split(',')
+	if (row[0] != 'lat/lon'):# stop processing
+		print('Error: '+name)
+		int('0.5')
+	startlongindex = 0;
+	endlongindex = 0;
+	longValues = []
+	for i in range(1, len(row)):
+		long = round(float(row[i]), 2) # round to 2 decimal places
+		if long <= boundLongVal[0]:
+			startlongindex = i
+		if long <= boundLongVal[1]:
+			endlongindex = i
+			
+	for i in range(startlongindex, endlongindex+1):
+		long = round(float(row[i]), 2) # round to 2 decimal places
+		longValues.append(long)
+	
+	# we should now have the indices to look for
+	
+	s = raw.readline()
+	#line = 1
+	amount = 0
+	scaleTotal = 0
+	areaScale = 0
+	dataPoints = 0
+	bins = [0, 0, 0, 0, 0] # <0,0-0.2,0.2-0.4,0.4-0.6,0.6<
+	areabins = [0, 0, 0, 0, 0] # <0,0-0.2,0.2-0.4,0.4-0.6,0.6<
+	while s != '':
+		#print(name)
+		#print(line)
+		#line += 1
+		row = s.split(',')
+		lat = round(float(row[0]), 2)
+		if lat >= boundLatVal[0] and lat <= boundLatVal[1]:
+			for i in range(startlongindex, endlongindex+1):
+				long = longValues[i-startlongindex]
+				areaScale = weights[(lat, long)]
+				scaleTotal += areaScale
+				value = float(row[i])
+				if value <= 0:
+					bins[0] += 1
+					areabins[0] += areaScale
+				elif value<= 0.2:
+					bins[1] += 1
+					areabins[1] += areaScale
+				elif value<= 0.4:
+					bins[2] += 1
+					areabins[2] += areaScale
+				elif value<= 0.6:
+					bins[3] += 1
+					areabins[3] += areaScale
+				else:
+					bins[4] += 1
+					areabins[4] += areaScale
+				amount += value*areaScale
+				dataPoints += 1
+				
+		s = raw.readline()
+	
+	# we now have total amount, take average
+	amount = amount/sum(weights.values())
+	#print(str(year) +'-'+str(month)+' '+str(bins))
+	statsOut.write(str(year)+','+str(month)+','+str(bins[0])+','+str(bins[1])+','+str(bins[2])+','+str(bins[3])+','+str(bins[4]))
+	statsOut.write('\n')
+	
+	areaOut.write(str(year)+','+str(month)+','+str(areabins[0])+','+str(areabins[1])+','+str(areabins[2])+','+str(areabins[3])+','+str(areabins[4]))
+	areaOut.write('\n')
+	
+	data = NDVI(amount=amount, measuredateyear = year, measuredatemonth = month, datapoints = dataPoints)
+	session.add(data)
+	
+	raw.close()
+
+statsOut.close()
+areaOut.close()
+session.commit()
+print('NDVI processing complete')
+	
 #######################################################################
 # The precipitation data has already been preaveraged (thanks to NOAA)
 
@@ -126,6 +250,7 @@ filenames = next(os.walk(precipPath))[2]
 #mode = 'zero'
 mode = 'prop'
 for file in filenames:
+	print(file)
 	raw = open(precipPath+'\\'+file, 'r')
 	year = int(file.strip('.csv')[-4:])
 	loc = file.strip('.csv')[-6:-4]
@@ -192,10 +317,9 @@ for file in filenames:
 	datamonth = 10
 	for i in range(12):
 		# who's missing
-		missing = (set(scaling.keys())-set(names[i]))-set(missPoints[i])
-		if len(missing) > 0:
-			print('Year ' + str(datayear) + ' ' + str(datamonth))
-			print (missing)
+		#missing = (set(scaling.keys())-set(names[i]))-set(missPoints[i])
+		#if len(missing) > 0:
+		#	print('Year ' + str(datayear) + ' ' + str(datamonth) ' ' + str(missing))
 		
 		data = Precip(amount=amount[i], measuredateyear = datayear, measuredatemonth = datamonth, datapoints = dataPoints[i])
 		session.add(data)
@@ -233,6 +357,7 @@ import os
 gldasPath = 'gldas'
 filenames = next(os.walk(gldasPath))[2]
 for name in filenames:
+	print(name)
 	raw = open(gldasPath+'\\'+name, 'r')
 	year = int(name.strip('gldas').strip('.txt')[:4])
 	month = int(name.strip('gldas').strip('.txt')[4:])
