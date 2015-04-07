@@ -7,6 +7,9 @@ Session = sessionmaker(bind=engine)
 session = Session()
 
 #######################################################################
+# STREAM FLOW DATA
+# ORIGINAL DATA IS IN CUBIC FEET PER SECOND
+# UNIT CONVERSION IS DONE IN FINAL SQL EXTRACT
 #clear flow data
 flows = session.query(Flow).delete()
 
@@ -85,7 +88,7 @@ session.commit()
 print('Flow Processing Complete')
 
 #######################################################################
-# The NVDI spatial data has been extracted using the hdftool from matlab and then slimmed down to size by using the area encompassed by the source and mouth of the san joaquin river
+# The NDVI Spatial data
 
 ndvi = session.query(NDVI).delete()
 
@@ -112,7 +115,7 @@ while s!= '':
 	s = raw.readline()
 raw.close()
 
-# because we need to do histograms
+# because we need to do histograms to prove the data is real
 ndviStats = 'ndvistats.csv'
 statsOut = open(ndviStats, 'w')
 statsOut.write('year,month,<0,0-0.2,0.2-0.4,0.4-0.6,0.6<\n')
@@ -125,7 +128,7 @@ import os
 ndviPath = 'NDVI'
 filenames = next(os.walk(ndviPath))[2]
 for name in filenames:
-	print (name)
+	#print (name)
 	raw = open(ndviPath+'\\'+name, 'r')
 	year = int(name.strip('NDVI').strip('.CSV')[:4])
 	month = int(name.strip('NDVI').strip('.CSV')[4:])
@@ -247,10 +250,10 @@ filenames = next(os.walk(precipPath))[2]
 # can deal with missing data in 2 ways
 # zero it
 # proportional split
-#mode = 'zero'
+# mode = 'zero'
 mode = 'prop'
 for file in filenames:
-	print(file)
+	#print(file)
 	raw = open(precipPath+'\\'+file, 'r')
 	year = int(file.strip('.csv')[-4:])
 	loc = file.strip('.csv')[-6:-4]
@@ -281,7 +284,7 @@ for file in filenames:
 					dataPoints[ind] += 1
 					names[ind].append(stationID)
 					# october of previous year to september of current
-					amount[ind] += areaScale*float(row[pos])/1000
+					amount[ind] += areaScale*float(row[pos])*25.4/1000
 					# 1000 is for mm -> m conversion
 				elif row[pos] == 'M':
 					missPoints[ind].append(stationID)
@@ -357,7 +360,7 @@ import os
 gldasPath = 'gldas'
 filenames = next(os.walk(gldasPath))[2]
 for name in filenames:
-	print(name)
+	#print(name)
 	raw = open(gldasPath+'\\'+name, 'r')
 	year = int(name.strip('gldas').strip('.txt')[:4])
 	month = int(name.strip('gldas').strip('.txt')[4:])
